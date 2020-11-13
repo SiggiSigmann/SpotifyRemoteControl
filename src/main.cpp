@@ -3,16 +3,16 @@
 #include "heltec.h"
 #include <WiFi.h>
 #include "secrets.h"
-/*#include "SpotifyClient/src/SpotifyClient.h"
-#include "ApiClient_Arduino/src/ApiClient.h"
-#include "SpotifyClient/secrets.h"*/
+#include "SpotifyClient.h"
+#include <FS.h>
+#include <SPIFFS.h>
 
 
 //counter for connectiong animation
 int loadingstep = 0;
 
-//ApiClient* apiClient;
-//SpotifyClient* sClient;
+ApiClient* apiClient;
+SpotifyClient* sClient;
 
 //stick calc
 int x_analog = 0, y_analog = 0;
@@ -78,6 +78,39 @@ void connectToWifi(String ssid, String password) {
     loadingAnimation("Connecting", "to " + ssid);
   }
 
+}
+
+void mountFS(){
+	//FORMAT_SPIFFS_IF_FAILED => true
+	if(!SPIFFS.begin(true)){
+        Serial.println("SPIFFS Mount Failed");
+        return;
+    }
+}
+
+String loadRefreshToken(){
+	File refreshTokenFile = SPIFFS.open("/refreshToken.txt", "r");
+	if (!refreshTokenFile) {
+		Serial.println("Failed to open config file");
+		return "";
+	}
+	while(refreshTokenFile.available()) {
+		String token = refreshTokenFile.readStringUntil('\r');
+		Serial.printf("Refresh Token: %s\n", token.c_str());
+		refreshTokenFile.close();
+		return token;
+	}
+	return "";
+}
+
+void saveRefreshToken(String refreshToken) {
+  File refreshTokenFile = SPIFFS.open("/refreshToken.txt", "w+");
+  if (!refreshTokenFile) {
+    Serial.println("Failed to open config file");
+    return;
+  }
+  refreshTokenFile.println(refreshToken);
+  refreshTokenFile.close();
 }
 
 void processStick(){
@@ -153,36 +186,51 @@ void handelUpdate(){
 }
 
 void setup() {
-  adcAttachPin(36);
-  adcAttachPin(37);
-  pinMode(38, INPUT);
-  
-  Heltec.begin(true /*DisplayEnable Enable*/, false /*LoRa Disable*/, true /*Serial Enable*/);
+	adcAttachPin(36);
+	adcAttachPin(37);
+	pinMode(38, INPUT);
 
-  //init disaly
-  Heltec.display->setContrast(255);
-  Heltec.display->clear();
+	Heltec.begin(true /*DisplayEnable Enable*/, false /*LoRa Disable*/, true /*Serial Enable*/);
 
-  connectToSerial();
-  connectToWifi(SSID, PASSWORD);
+	//init disaly
+	Heltec.display->setContrast(255);
+	Heltec.display->clear();
 
-  Heltec.display->clear();
-  Heltec.display->display();
+	connectToSerial();
+	connectToWifi(SSID, PASSWORD);
+	mountFS();
 
-  //WiFiClient wifiClient;
-  //const char* host = "api.spotify.com";
-  /*apiClient = new ApiClient(&wifiClient);
-  Serial.println(apiClient->connect(host));
+	Heltec.display->clear();
+	Heltec.display->display();
 
-  DynamicJsonDocument doc(2048);
-  doc["access_token"]=
-  
-  apiClient->GET("/api/token");
-  apiClient->setAuthentication("12345");
-  apiClient->GET("https://api.spotify.com/v1/me/player");*/
-  
-  //sClient = new SpotifyClient();
-  //sClient->autentificationServer();
+	WiFiClient wifiClient;
+	//const char* host = "api.spotify.com";
+	/*apiClient = new ApiClient(&wifiClient);
+	Serial.println(apiClient->connect(host));
+
+	DynamicJsonDocument doc(2048);
+	doc["access_token"]=
+
+	apiClient->GET("/api/token");
+	apiClient->setAuthentication("12345");
+	apiClient->GET("https://api.spotify.com/v1/me/player");*/
+
+	sClient = new SpotifyClient("remote");
+
+	//check if refreshtoken exists => if not authentication needed
+	String token = loadRefreshToken();
+	if(token==""){
+		Serial.println("need to auth");
+		String thecode = sClient->startAuthentication();
+		sClient->getAccessAndRefreshToken(thecode);
+		saveRefreshToken(*sClient->getRefreshToken());
+	}else{
+		sClient->setRefreshToken(token);
+	}
+
+
+
+
 
 }
 
