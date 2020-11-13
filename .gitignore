@@ -1,4 +1,5 @@
 src/secrets.h
+lib/*
 
 .pio
 .vscode/.browse.c_cpp.db*
