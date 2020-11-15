@@ -22,7 +22,7 @@ unsigned long antiBound=0;
 
 //update
 unsigned long now = 0;
-unsigned long updateTime = 1000;
+unsigned long updateTime = 2000;
 bool updatetoggle = false;
 
 //display connection animation
@@ -119,8 +119,8 @@ void processStick(){
   }
   
   //smothing
-  x_analog = (analogRead(36) * 0.3 + (0.7 * (x_analog + 2000))-2000);
-  y_analog = (analogRead(37) * 0.3 + (0.7 * (y_analog + 2000))-2000);
+  x_analog = (analogRead(37) * 0.3 + (0.7 * (x_analog + 2000))-2000);
+  y_analog = (analogRead(36) * 0.3 + (0.7 * (y_analog + 2000))-2000);
 
   //process y
   if (y_analog > 1500 and !x_direct) {
@@ -182,6 +182,9 @@ void handelUpdate(){
   if(millis()>now ){
     now = millis()+updateTime;
     updatetoggle = !updatetoggle;
+
+
+	sClient->getPlayerInfo();
   }
 }
 
@@ -204,16 +207,6 @@ void setup() {
 	Heltec.display->display();
 
 	WiFiClient wifiClient;
-	//const char* host = "api.spotify.com";
-	/*apiClient = new ApiClient(&wifiClient);
-	Serial.println(apiClient->connect(host));
-
-	DynamicJsonDocument doc(2048);
-	doc["access_token"]=
-
-	apiClient->GET("/api/token");
-	apiClient->setAuthentication("12345");
-	apiClient->GET("https://api.spotify.com/v1/me/player");*/
 
 	sClient = new SpotifyClient("remote");
 
@@ -225,13 +218,14 @@ void setup() {
 		sClient->getAccessAndRefreshToken(thecode);
 		saveRefreshToken(*sClient->getRefreshToken());
 	}else{
+		//todo: waht if this not working
+		//delete stuff if needed
 		sClient->setRefreshToken(token);
+		sClient->renewAccessToken();
 	}
 
 
-
-
-
+	sClient->startControl();
 }
 
 void loop() {
